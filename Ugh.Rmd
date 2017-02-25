@@ -1,0 +1,214 @@
+---
+title: "Coursera_Milestone_Report"
+author: "Rodney Waiters"
+date: "February 14, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(warn=-1)
+```
+
+Read in the data.  Below are the file size, row count and row length for each respective data set. 
+
+```{r, cache=TRUE,blog.data}
+library(SnowballC)
+library(ngram)
+library(stringr)
+library(RWeka)
+#------------------------Blog 
+proc.blog<-proc.time()
+
+blog_con<-file("en_US/en_US.blogs.txt","r")
+Blog.Size<-file.info("en_US/en_US.blogs.txt","r")$size/1024^2
+blog_len<-length(readLines("en_US/en_US.blogs.txt"))
+blog_len
+#sum(sapply(gregexpr("\\S+,",readLines("en_US/en_US.blogs.txt")),length ))
+
+#b<-c(rep("Blog",times=10000))
+#class(blogdata)
+blogdata<-readLines(blog_con)[sample(1:blog_len,blog_len*.1)]
+close(blog_con)
+
+blog.df<- data.frame(text=blogdata)
+#blog.df$type<-"Blog"
+#class(blogdf)
+pryr::object_size(blog_con)
+pryr::object_size(blog.df)
+rm(blog_con)
+rm(blog_len)
+rm(blogdata)
+#rm(b)
+gc()
+proc.time()-proc.blog
+```
+
+```{r, twitterdata,cache=TRUE}
+#------------------------Twitter 
+proc.twit<-proc.time() 
+twit_con <- file("en_us/en_US.twitter.txt", "r") 
+Twit.Size<-file.info("en_US/en_US.twitter.txt","r")$size/1024^2
+twit_len<-length(readLines("en_US/en_US.twitter.txt"))
+twit_len
+sum(sapply(gregexpr("\\S+,",readLines("en_US/en_US.twitter.txt")),length ))
+t<-c(rep("Twitter",times=10000))#twit_len*.01
+twitdata<-readLines(twit_con)[sample(1:twit_len,twit_len*.1)]#
+close(twit_con)
+
+twit.df<-data.frame(text=twitdata)
+#twit.df$type<-"Twit"
+rm(twit_con)
+rm(twit_len)
+rm(twitdata)
+rm(t)
+gc()
+proc.time()-proc.twit
+```
+
+```{r,cache=TRUE,  news.data}
+#-----------------------News
+proc.news<-proc.time() 
+news_con<-file("en_US/en_US.news.txt","r")
+News.Size<-file.info("en_US/en_US.news.txt","r")$size/1024^2
+news_len<-length(readLines("en_US/en_US.news.txt"))
+news_len
+sum(sapply(gregexpr("\\S+,",readLines("en_US/en_US.news.txt")),length ))
+n<-c(rep("News", times=10000))#news_len*.01
+newsdata<-readLines(news_con)[sample(1:news_len,news_len*.1)]#
+close(news_con)
+rm(news_con)
+rm(news_len)
+news.df<-data.frame(text=newsdata)
+#news.df$type<-"News"
+#head(newsdata)
+rm(newsdata)
+rm(n)
+gc()
+proc.time()-proc.news
+```
+
+```{r, cache=TRUE, file.size}
+FileSize <- rbind(Blog.Size,Twit.Size,News.Size)
+FileSize
+rm(Blog.Size)
+rm(Twit.Size)
+rm(News.Size)
+gc()
+
+```
+
+Concatenate all three of the data sources 
+
+```{r, join.data}
+#
+# cache=TRUE,
+all_line<-rbind(blog.df,twit.df,news.df)#, 
+#class( blogdf)
+rm(blog.df)
+rm(twit.df)
+rm(news.df)
+
+#number of records in the all_line data set
+nrow(all_line)
+class(all_line)
+head(all_line)
+gc()
+```
+
+Create and clean the Corpus
+
+```{r,  clean.corpus}
+library(NLP);library(tm);
+#cache=TRUE,
+library(Unicode)
+gc(TRUE)
+
+ds <-DataframeSource(all_line)
+#inspect(VCorpus(ds))
+all_corpus<-VCorpus((ds))
+rm(all_line)
+#gc()
+all_corpus_clean<-tm_map(all_corpus, 
+                            content_transformer(tolower))
+rm(ds)
+rm(all_corpus)
+all_corpus_clean<- tm_map(all_corpus_clean, content_transformer(removeNumbers))
+all_corpus_clean<- tm_map(all_corpus_clean, removeWords, stopwords())
+replacePunctuation<-function(x){
+ Unicode_alphabetic_tokenizer(x)
+}
+all_corpus_clean<- tm_map(all_corpus_clean, content_transformer(replacePunctuation))
+all_corpus_clean<- tm_map(all_corpus_clean, content_transformer(stemDocument))
+all_corpus_clean<- tm_map(all_corpus_clean, content_transformer(stripWhitespace))
+all_corpus_clean<- tm_map(all_corpus_clean, PlainTextDocument)
+#inspect(all_corpus_clean)
+#meta(all_corpus_clean)
+#inspect(all_corpus_clean)
+
+#for (i in 1:5){
+#  cat(paste("[[",i,"]]", sep = ""))
+#writeLines(as.character(all_corpus_clean[[i]]))
+#}
+```
+
+#Create a Document Term Matrix
+We create a document term matrix to look at the word frequency of the all_lines data set.  We then create a word clould to visualize some of the more relevant terms.
+
+
+```{r, echo=FALSE}
+library(RColorBrewer);library(wordcloud);
+library(tm)
+library(RWeka)
+library(NLP)
+clean.corpus<-Corpus(VectorSource(all_corpus_clean))
+
+tdm <-TermDocumentMatrix(clean.corpus)
+
+#Docs(tdm)
+nDocs(tdm)
+inspect(tdm)
+
+
+Bi.gramTokenizer <- function(x) NGramTokenizer(x, Weka_control(min = 2, max = 2))
+tdm2 <- TermDocumentMatrix(clean.corpus, control = list(tokenize = Bi.gramTokenizer))
+inspect(tdm2)
+
+TDMdense <- as.matrix(tdm)
+set.seed(777)
+wordcloud(rownames(TDMdense), rowSums(TDMdense), min.freq = 10, max.words=300, colors=brewer.pal(6, "Dark2"))
+
+dtm<-DocumentTermMatrix(Corpus(VectorSource(all_corpus_clean)))
+#dtm
+inspect(dtm)
+rm(all_corpus_clean)
+freq<-colSums(as.matrix(dtm))
+ord<-order(freq)
+```
+
+This is a listing of some of the more frequently used words
+
+```{r}
+#findFreqTerms(tdm, lowfreq=10)
+#term.freq<-rowSums(as.matrix(tdm))
+#term.freq
+#plot(tdm, corThreshold = .2, weighting = TRUE)
+#freq[tail(ord)]
+wf<-data.frame(word=names(freq),freq=freq)
+```
+
+Create a frequency chart to see the relevant terms similar to the word cloud
+
+```{r, echo=FALSE}
+# Create a frequency chart to see the relevant terms similar to the word cloud
+library(ggplot2)
+library(NLP)
+p<-ggplot(subset(wf, freq>20), aes(word, freq))
+p<-p+geom_bar(stat = "identity")
+p<-p+theme(axis.text.x=element_text(angle=45, hjust = 1))
+p
+
+
+#ngrams(tdm, 3L)
+
+```

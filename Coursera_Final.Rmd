@@ -1,0 +1,212 @@
+---
+title: "Coursera_Final"
+author: "Rodney Waiters"
+date: "January 24, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Twitter
+
+```{r twitter, cache=TRUE}
+library(tm)
+Twitter_lines<-readLines("en_US/en_US.twitter.txt")
+length(Twitter_lines)
+max(nchar(Twitter_lines))
+
+Twitter_line<- Twitter_lines[1:100]
+class(Twitter_line)
+
+#love<-sum(as.numeric(grep( "love",Twitter_lines,ignore.case = FALSE)))
+#love
+
+#hate<-sum(as.numeric(grep( "hate",Twitter_lines,ignore.case = FALSE)))
+#hate
+
+#love/hate
+
+#bio<-grep("biostats", Twitter_lines, value = TRUE)
+#bio
+
+#kick<-length(grep("A computer once beat me at chess, but it was no match for me at kickboxing", Twitter_lines))
+
+#kick
+
+#Twitter_lines<- names("text")
+#Twitter_lines<- data.frame(Twitter_lines)
+
+#Twitter_lines$type<- a.vector#c(rep( "Twitter",length(Twitter_lines)))
+#Twitter_lines<-names("text", "type")
+#str(Twitter_lines)
+```
+
+
+```{r}
+library(tm)
+library(SnowballC)
+library(ngram)
+#Create a corpus
+twitter_corpus<-VCorpus(VectorSource(Twitter_line))
+print(twitter_corpus)
+as.character(twitter_corpus[1])
+
+#Prepare the document by changing all letters to lowercase
+twitter_corpus_clean<-tm_map(twitter_corpus, 
+                             content_transformer(tolower))
+#as.character(twitter_corpus[[1]])
+#twitter_corpus_clean[[1]]
+as.character(twitter_corpus_clean[[1]])
+#Remove numbers
+twitter_corpus_clean<- tm_map(twitter_corpus_clean, removeNumbers)
+as.character(twitter_corpus_clean[[1]])
+#Remove filler works that do not add predictive value
+twitter_corpus_clean<- tm_map(twitter_corpus_clean, removeWords, stopwords())
+as.character(twitter_corpus_clean[[1]])
+replacePunctuation<-function(x){
+  gsub("[[:punct:]]+","",x)
+  
+}
+
+
+#Replace the punctuation in the documents
+twitter_corpus_clean<- tm_map(twitter_corpus_clean, replacePunctuation)
+as.character(twitter_corpus_clean[[1]])
+#Stem the words to their root forms
+twitter_corpus_clean<- tm_map(twitter_corpus_clean, stemDocument)
+as.character(twitter_corpus_clean[[1]])
+#Strip out all of the whitespace
+twitter_corpus_clean<- tm_map(twitter_corpus_clean, stripWhitespace)
+#as.character(twitter_corpus[[1]])
+as.character(twitter_corpus_clean[[1]])
+#Convert characters to documents
+twitter_corpus_clean<- tm_map(twitter_corpus_clean, PlainTextDocument)
+as.character(twitter_corpus_clean[[1]])
+#Tokenization
+twitter_dtm<-DocumentTermMatrix(twitter_corpus_clean)
+twitter_dtm
+#summary(twitter_corpus_clean)
+#----------------------ngrams
+#str <- concatenate ( lapply ( twitter_corpus_clean , "[", 1) )
+#string.summary(str) 
+#ng<-ngram(str, n=2)
+#print(ng, output = "truncated")
+
+#head(get.phrasetable(ngram(str, n=3)))
+#babble(ng, genlen=5, seed=7777)
+#----------------------ngrams
+```
+##Blog##
+
+```{r blog, cache=TRUE}
+library(tm)
+library(Unicode)
+blog_lines<-readLines("en_US/en_US.blogs.txt")
+#blog_lines<-gsub("\\\"\\\"", "\"", blog_lines)
+blog_lines<-iconv(blog_lines, "UTF-8", "UTF-8")
+#length(blog_lines)
+#max(nchar(blog_lines))
+#test<-blog_lines[1:100]
+
+#for (i in 1:100) {
+# cat(paste0("[[", i, "]] ", sep=""))
+# writeLines(strwrap(blog_lines[[i]]$getText(), width=73))
+# }
+
+#df<-do.call("rbind", lapply(test, as.data.frame))
+#dim(df)
+str(blog_lines)
+blog_line<-blog_lines[1:100]
+```
+
+```{r}
+library(tm)
+library(SnowballC)
+library(ngram)
+library(stringr)
+library(Unicode)
+#Create a corpus
+blog_corpus<-VCorpus(VectorSource(blog_line))
+print(blog_corpus)
+as.character(blog_corpus[[1]])
+
+#Prepare the document by changing all letters to lowercase
+blog_corpus_clean<-tm_map(blog_corpus, 
+                             content_transformer(tolower))
+#blog_corpus_clean<-tm_map(blog_corpus_clean, 
+                          #Unicode_alphabetic_tokenizer(blog_corpus_clean))
+#removeURL = function(x) gsub("http\\w+", "", x)
+#blog_corpus_clean<-tm_map(blog_corpus, 
+                             #content_transformer(removeURL))
+
+#as.character(twitter_corpus[[1]])
+#twitter_corpus_clean[[1]]
+#as.character(blog_corpus_clean[[1]])
+#Remove numbers
+blog_corpus_clean<- tm_map(blog_corpus_clean, removeNumbers)
+
+#as.character(blog_corpus_clean[[1]])
+#Remove filler works that do not add predictive value
+blog_corpus_clean<- tm_map(blog_corpus_clean, removeWords, stopwords())
+
+#as.character(blog_corpus_clean[[1]])
+replacePunctuation<-function(x){
+  #gsub("[[:punct:]]+","",x)
+  Unicode_alphabetic_tokenizer(x)
+}
+#Replace the punctuation in the documents
+#gsub("[[:punct:]]+"," ",blog_corpus_clean[[1]])
+blog_corpus_clean<- tm_map(blog_corpus_clean, replacePunctuation)
+replacePunctuationb<-function(x){
+  #gsub("[[:punct:]]+","",x)
+  #gsub(pattern="[[:punct:]]", x, replacement=" ")
+  gsub("list",replacement = " ",x,ignore.case = FALSE, perl = FALSE,
+     fixed = FALSE, useBytes = FALSE)
+  
+}
+blog_corpus_clean<- tm_map(blog_corpus_clean, replacePunctuationb)
+#as.character(blog_corpus_clean[[1]])
+#Stem the words to their root forms
+blog_corpus_clean<- tm_map(blog_corpus_clean, trimws)
+blog_corpus_clean<- tm_map(blog_corpus_clean, PlainTextDocument)
+#wordStem(c("platform", "platforms", "platformed"))
+blog_corpus_clean<- tm_map(blog_corpus_clean, stemDocument)
+#as.character(blog_corpus_clean[[1]])
+#Strip out all of the whitespace
+
+blog_corpus_clean<- tm_map(blog_corpus_clean, stripWhitespace)
+blog_corpus_clean<- tm_map(blog_corpus_clean, PlainTextDocument)
+#
+#as.character(twitter_corpus[[1]])
+#as.character(blog_corpus_clean[[1]])
+#Convert characters to documents
+#blog_corpus_clean<- tm_map(blog_corpus_clean, PlainTextDocument)
+as.character(blog_corpus_clean[[1]])
+as.character(blog_corpus_clean[[2]])
+#Tokenization
+blog_dtm<-DocumentTermMatrix(blog_corpus_clean)
+blog_dtm
+#summary(blog_corpus_clean)
+#----------------------ngrams
+str <- concatenate (lapply ( blog_corpus_clean , "[", 1) )
+#head(str)
+string.summary(str) 
+ng<-ngram(str, n=2)
+print(ng, output = "truncated")
+
+head(get.phrasetable(ngram(str, n=2)))
+babble(ng, genlen=5, seed=7777)
+#----------------------ngrams
+```
+
+##News##
+
+```{r news, cache=TRUE}
+library(tm)
+news_lines<-readLines("en_US/en_US.news.txt")
+#length(news_lines)
+#max(nchar(news_lines))
+str(news_lines)
+```
